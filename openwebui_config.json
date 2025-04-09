@@ -1,0 +1,33 @@
+{
+  "host": "0.0.0.0",
+  "port": 11434,
+  "model_path": "./qwq",
+  "tensor_parallel_size": 2,
+  "gpu_memory_utilization": 0.7,
+  "max_model_len": 4096,
+  "disable_custom_all_reduce": true,
+  "kv_cache_token_limit": 8192,
+  "kv_cache_cleanup_interval": 3600,
+  "chunk_size": 512,
+  "chunk_overlap": 128,
+  "session_timeout": 86400,
+  "database_url": "sqlite:///kag.db",
+  "auth_enabled": true,
+  "jwt_secret": "your-very-secure-jwt-secret-key-change-me",
+  "jwt_algorithm": "HS256",
+  "jwt_expires_minutes": 1440,
+  "log_level": "INFO",
+  "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+  "openai_api_prefix": "/v1",
+  "cors_settings": {
+    "origins": ["http://localhost:3002"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  },
+  "openwebui": {
+    "url": "http://localhost:3002",
+    "api_key": "your-api-key",
+    "enabled": true
+  }
+} 

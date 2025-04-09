@@ -1,0 +1,60 @@
+# Conda environment setup for KAG system with CUDA 12.8
+
+# Create conda environment
+conda create -n kag python=3.10 -y
+
+# Activate environment
+conda activate kag
+
+# Install PyTorch with CUDA 12.8
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia -y
+
+# Install CUDA toolkit 12.8
+conda install -c "nvidia/label/cuda-12.8" cuda-toolkit -y
+
+# Install vLLM
+pip install vllm
+
+# Install other dependencies
+pip install transformers==4.36.2
+pip install accelerate
+pip install einops
+pip install fastapi
+pip install uvicorn
+pip install pydantic
+pip install sentencepiece
+pip install openai
+
+# API and web server dependencies
+pip install fastapi-users[sqlalchemy]
+pip install python-multipart
+pip install python-jose[cryptography]
+pip install passlib[bcrypt]
+pip install SQLAlchemy
+pip install alembic
+pip install aiosqlite
+pip install redis
+
+# Document processing
+pip install langchain
+pip install pypdf
+pip install docx2txt
+pip install unstructured
+pip install beautifulsoup4
+pip install markdown
+
+# Testing and development
+pip install pytest
+pip install black
+pip install isort
+pip install httpx
+
+# Optional: For OpenWebUI installation
+# (Only if you're installing OpenWebUI on the same machine)
+# pip install docker-compose
+# pip install requests
+
+# For Monitoring and Performance
+pip install prometheus-client
+pip install opentelemetry-api
+pip install opentelemetry-sdk 
