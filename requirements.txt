@@ -1,0 +1,10 @@
+# KAG Proxy Server Dependencies
+fastapi>=0.115.0
+uvicorn>=0.23.0
+httpx>=0.24.0
+starlette>=0.33.0
+requests>=2.30.0
+aiosqlite>=0.19.0
+langchain>=0.0.267
+python-multipart>=0.0.6
+pydantic>=2.0.0 

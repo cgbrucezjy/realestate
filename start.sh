@@ -1,68 +1,29 @@
 #!/bin/bash
-# KAG System Startup Script
+# KAG System Startup Script (Connect to existing vLLM)
 
 set -e
 
-echo "==== Starting KAG System ===="
+echo "==== Starting KAG System (Using existing vLLM) ===="
 
-# Check for conda environment
-if ! command -v conda &> /dev/null; then
-    echo "Conda is not installed. Please install conda first."
-    exit 1
-fi
-
-# Activate conda environment
-if [ -z "$CONDA_DEFAULT_ENV" ] || [ "$CONDA_DEFAULT_ENV" != "kag" ]; then
-    echo "Activating kag conda environment..."
-    source "$(conda info --base)/etc/profile.d/conda.sh"
-    if conda env list | grep -q "kag"; then
-        conda activate kag
-    else
-        echo "KAG conda environment not found. Creating from conda.txt..."
-        conda create -n kag python=3.10 -y
-        conda activate kag
-        
-        # Install dependencies from conda.txt
-        while read -r line; do
-            # Skip comments and empty lines
-            [[ "$line" =~ ^#.*$ ]] && continue
-            [[ -z "$line" ]] && continue
-            
-            # Execute conda commands
-            if [[ "$line" == conda* ]]; then
-                eval "$line"
-            fi
-        done < conda.txt
-        
-        # Install pip dependencies
-        while read -r line; do
-            # Skip comments, empty lines and conda commands
-            [[ "$line" =~ ^#.*$ ]] && continue
-            [[ -z "$line" ]] && continue
-            [[ "$line" == conda* ]] && continue
-            
-            # Execute pip commands
-            if [[ "$line" == pip* ]]; then
-                eval "$line"
-            fi
-        done < conda.txt
+# Check if we're in a virtual environment
+if [ -z "$VIRTUAL_ENV" ]; then
+    echo "Warning: No active virtual environment detected."
+    echo "It's recommended to run this script inside a virtual environment with all dependencies installed."
+    echo "Continuing anyway..."
+    
+    # Activate the virtual environment if it exists
+    if [ -d "kag_venv" ]; then
+        echo "Found kag_venv directory. Activating..."
+        source kag_venv/bin/activate
     fi
+else
+    echo "Using virtual environment: $VIRTUAL_ENV"
 fi
 
-# Check for CUDA
-if ! command -v nvcc &> /dev/null; then
-    echo "Warning: CUDA not found. GPU acceleration may not be available."
-fi
-
-# Check for model
-if [ ! -d "./qwq" ]; then
-    echo "Warning: Model directory './qwq' not found. Please ensure your model is available."
-    read -p "Do you want to continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]
-    then
-        exit 1
-    fi
+# Install dependencies from requirements.txt
+if [ -f "requirements.txt" ]; then
+    echo "Installing dependencies from requirements.txt..."
+    pip install -r requirements.txt
 fi
 
 # Create the required directories
@@ -83,33 +44,39 @@ touch kag/user/__init__.py
 touch kag/utils/__init__.py
 
 # Parse arguments
-TENSOR_PARALLEL_SIZE=2
-GPU_MEMORY_UTILIZATION=0.7
-HOST="0.0.0.0"
-PORT=11434
-DISABLE_CUSTOM_ALL_REDUCE=true
+VLLM_HOST="localhost"  # Host where LLM server is running
+VLLM_PORT=11434        # Port where LLM server is running
+KAG_HOST="0.0.0.0"     # KAG will listen on all interfaces
+KAG_PORT=11435         # KAG will use a different port (11435)
+PROXY_MODE=true        # Run in proxy mode to use existing LLM server
+LLM_TYPE="vllm"        # Default LLM type: vllm or ollama
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        --tensor-parallel-size)
-        TENSOR_PARALLEL_SIZE="$2"
+        --vllm-host)
+        VLLM_HOST="$2"
         shift
         shift
         ;;
-        --gpu-memory-utilization)
-        GPU_MEMORY_UTILIZATION="$2"
+        --vllm-port)
+        VLLM_PORT="$2"
         shift
         shift
         ;;
-        --host)
-        HOST="$2"
+        --kag-host)
+        KAG_HOST="$2"
         shift
         shift
         ;;
-        --port)
-        PORT="$2"
+        --kag-port)
+        KAG_PORT="$2"
+        shift
+        shift
+        ;;
+        --llm-type)
+        LLM_TYPE="$2"
         shift
         shift
         ;;
@@ -128,21 +95,30 @@ fi
 
 # Start the KAG server
 echo "Starting KAG server with the following configuration:"
-echo "  - Tensor Parallel Size: $TENSOR_PARALLEL_SIZE"
-echo "  - GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
-echo "  - Host: $HOST"
-echo "  - Port: $PORT"
-echo "  - Model Path: ./qwq"
+echo "  - KAG Host: ${KAG_HOST}"
+echo "  - KAG Port: ${KAG_PORT}"
+echo "  - Using existing ${LLM_TYPE} server at: ${VLLM_HOST}:${VLLM_PORT}"
+echo "  - Proxy Mode: Enabled"
+echo "  - LLM Type: ${LLM_TYPE}"
 
-# Set environment variables for server
-export KAG_TENSOR_PARALLEL_SIZE=$TENSOR_PARALLEL_SIZE
-export KAG_GPU_MEMORY_UTILIZATION=$GPU_MEMORY_UTILIZATION
-export KAG_HOST=$HOST
-export KAG_PORT=$PORT
-export KAG_MODEL_PATH="./qwq"
-export KAG_DISABLE_CUSTOM_ALL_REDUCE=$DISABLE_CUSTOM_ALL_REDUCE
+# Set environment variables for server (in proxy mode)
+export KAG_HOST=$KAG_HOST
+export KAG_PORT=$KAG_PORT
+export KAG_PROXY_MODE=$PROXY_MODE
+export KAG_EXTERNAL_LLM_URL="http://${VLLM_HOST}:${VLLM_PORT}"
+export KAG_LLM_TYPE=$LLM_TYPE
 
-# Run the server
-python -m kag.server.main
+# Make test scripts executable
+if [ -f "test-query.sh" ]; then
+    chmod +x test-query.sh
+fi
+
+if [ -f "check-documents.sh" ]; then
+    chmod +x check-documents.sh
+fi
+
+# Run the server in proxy mode
+echo "Starting KAG in proxy mode to connect to existing vLLM instance..."
+python -m kag.server.proxy
 
 echo "==== KAG Server Started ====" 

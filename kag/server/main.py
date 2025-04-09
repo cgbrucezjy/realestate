@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import os
 import time
+import glob
 from typing import Dict, List, Optional, Any
 
 import uvicorn
@@ -86,6 +87,73 @@ async def session_stats():
     """Get session statistics."""
     return session_manager.get_stats()
 
+async def load_knowledge_folder():
+    """
+    Load all Markdown files from kag/knowledge folder into the document database.
+    This ensures all knowledge is available for the KAG system on startup.
+    """
+    logger.info("Loading knowledge files from kag/knowledge folder...")
+    
+    # Get path to knowledge folder
+    base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    knowledge_path = os.path.join(base_path, "kag", "knowledge")
+    
+    if not os.path.exists(knowledge_path):
+        logger.warning(f"Knowledge folder not found: {knowledge_path}")
+        return
+    
+    # Get all markdown files
+    md_files = glob.glob(os.path.join(knowledge_path, "*.md"))
+    
+    if not md_files:
+        logger.warning("No markdown files found in knowledge folder")
+        return
+    
+    logger.info(f"Found {len(md_files)} markdown files in knowledge folder")
+    
+    # Create a default session ID for the knowledge base
+    kb_session_id = "knowledge_base_session"
+    document_ids = []
+    
+    # Process each file
+    for md_file in md_files:
+        try:
+            # Get filename without extension
+            filename = os.path.basename(md_file)
+            document_name = os.path.splitext(filename)[0]
+            document_id = f"kb_{document_name}"
+            document_ids.append(document_id)
+            
+            # Read file content
+            with open(md_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            # Process document
+            await document_processor.process_document(
+                document=content,
+                document_type="md",
+                document_name=document_name,
+                document_id=document_id,
+                user_id="system"
+            )
+            
+            logger.info(f"Processed knowledge file: {filename}")
+            
+        except Exception as e:
+            logger.error(f"Error processing knowledge file {md_file}: {str(e)}")
+    
+    # Load documents into KV cache
+    if document_ids:
+        try:
+            await kv_cache_manager.ensure_documents_loaded(
+                session_id=kb_session_id,
+                document_ids=document_ids,
+                user_id="system"
+            )
+            logger.info(f"Loaded {len(document_ids)} knowledge documents into KV cache")
+        except Exception as e:
+            logger.error(f"Error loading knowledge documents into KV cache: {str(e)}")
+
 async def setup_vllm_engine():
     """Setup vLLM engine with KAG extensions."""
     logger.info("Setting up vLLM engine with KAG extensions...")
@@ -155,6 +223,9 @@ async def startup_event():
     args = await setup_vllm_engine()
     logger.info(f"Starting server on {args.host}:{args.port}")
     logger.info(f"CORS configured for origins: {cors_origins}")
+    
+    # Load knowledge files
+    await load_knowledge_folder()
 
 async def shutdown_event():
     """Shutdown event handler."""

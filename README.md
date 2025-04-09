@@ -73,6 +73,27 @@ python -m kag.server.main
 2. Start chatting with context from your documents
 3. The system will maintain your conversation context and document knowledge
 
+## PDF to Knowledge Converter
+
+The KAG system includes a utility for converting PDF documents to knowledge files that can be used with the system:
+
+```bash
+# Make the script executable
+chmod +x scripts/convert_pdfs.sh
+
+# Place your PDFs in the pdfs/ folder
+mkdir -p pdfs
+# ... add your PDF files to pdfs/ folder
+
+# Run the conversion script
+./scripts/convert_pdfs.sh
+
+# To convert and upload directly to the KAG server:
+./scripts/convert_pdfs.sh --upload
+```
+
+For more details on the PDF conversion tool, see [scripts/README-pdf-to-knowledge.md](scripts/README-pdf-to-knowledge.md).
+
 ## Performance Considerations
 
 - Running with 2x H100 GPUs is recommended for optimal performance
